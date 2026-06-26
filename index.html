@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rastreio de Sacas · Stage Zone · MELI SMG15</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%23FFE600'/%3E%3Cpath d='M6 24 Q10 14 15 19 Q19 24 22 20 Q25 16 29 20 Q34 24 38 16' stroke='%232D3277' stroke-width='3.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #c7d8ee; --surface: #ffffff; --surface2: #e6eef9; --surface3: #d6e2f3;
+  --border: #b9cde8; --border2: #9fbce2; --text: #232a47; --text2: #4f5f80; --text3: #8294b4;
+  --accent: #3483FA; --accent2: #2a6fe0; --green: #00a650; --red: #e63946; --yellow: #f5a623;
+  --meli: #FFE600; --meli-blue: #2D3277;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; min-height: 100vh; }
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); border-top: 3px solid var(--meli); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(45,50,119,.06); }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--meli); }
+.brand-name { font-weight: 700; font-size: 16px; letter-spacing: -0.5px; }
+.brand-sub { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.pill { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); background: var(--surface2); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.off { background: var(--red); }
+.queue-badge { color: var(--yellow); }
+.tabs { display: flex; gap: 4px; padding: 12px 20px 0; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab { padding: 10px 16px; border: none; background: transparent; color: var(--text2); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; white-space: nowrap; }
+.tab.active { color: var(--text); border-bottom-color: var(--meli); background: var(--surface2); }
+.tab:hover:not(.active) { color: var(--text); }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+.page { display: none; } .page.active { display: block; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(45,50,119,.05); }
+.card h2 { font-size: 16px; margin-bottom: 4px; }
+.card .hint { font-size: 12.5px; color: var(--text3); margin-bottom: 16px; line-height: 1.5; }
+.card .hint code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-family: 'DM Mono',monospace; color: var(--text2); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+label.fld { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text2); font-weight: 600; }
+input, select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 9px; padding: 10px 12px; font-family: inherit; font-size: 14px; outline: none; }
+input:focus, select:focus { border-color: var(--accent); }
+input::placeholder { color: var(--text3); }
+.btn { background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 10px 16px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn:hover { background: var(--accent2); }
+.btn.ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+.btn.green { background: var(--green); } .btn.red { background: var(--red); }
+.btn.sm { padding: 6px 11px; font-size: 12.5px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+th { color: var(--text3); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+tr:hover td { background: var(--surface2); }
+.mono { font-family: 'DM Mono', monospace; }
+.tag { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.tag.orig { background: rgba(52,131,250,.13); color: #1f5fc4; }
+.tag.dup { background: rgba(245,166,35,.18); color: #a85d00; }
+.tag.ok { background: rgba(0,166,80,.14); color: #00854f; }
+.tag.miss { background: rgba(230,57,70,.13); color: #c0283a; }
+.tag.print { background: var(--surface3); color: var(--text2); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 12px; }
+.stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+.stat .n { font-size: 28px; font-weight: 700; font-family: 'DM Mono', monospace; }
+.stat .l { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+.empty { text-align: center; color: var(--text3); padding: 30px; font-size: 13px; }
+.dup-route { margin-bottom: 20px; }
+.dup-route:last-child { margin-bottom: 0; }
+.dup-route-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+.dup-route-head .lhs { display: flex; align-items: center; gap: 10px; }
+.dup-route-head .stg { font-family: 'DM Mono',monospace; font-size: 11px; font-weight: 700; background: var(--meli-blue); color: #fff; padding: 3px 9px; border-radius: 6px; }
+.dup-route-head .rt { font-weight: 700; font-size: 14px; }
+.dup-route-head .tot { font-family: 'DM Mono',monospace; font-size: 12px; color: var(--text2); }
+.dup-route-head .tot b { color: var(--yellow); font-size: 15px; }
+.dup-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.dup-row .saca { width: 96px; font-family: 'DM Mono',monospace; font-size: 13px; color: var(--text2); flex-shrink: 0; }
+.dup-bar-wrap { flex: 1; height: 20px; background: var(--surface2); border-radius: 6px; overflow: hidden; }
+.dup-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--yellow)); border-radius: 6px; min-width: 3px; transition: width .3s; }
+.dup-row .cnt { width: 34px; text-align: right; font-family: 'DM Mono',monospace; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.stage-list { display: grid; grid-template-columns: repeat(auto-fill,minmax(220px,1fr)); gap: 12px; margin-top: 8px; }
+.stage-chip { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface2); }
+.stage-num { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; font-family: 'DM Mono',monospace; background: var(--meli-blue); color: #fff; }
+.stage-chip .s-name { font-weight: 700; font-size: 15px; }
+.stage-chip .s-rota { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; }
+.stage-chip .s-cnt { font-size: 11px; color: var(--text3); }
+.scan-box { text-align: center; padding: 6px 0 14px; }
+.scan-input { font-size: 24px; text-align: center; letter-spacing: 1px; font-family: 'DM Mono', monospace; width: 100%; max-width: 520px; padding: 16px; }
+.scan-feedback { margin: 18px auto 0; max-width: 600px; padding: 22px; border-radius: 14px; font-size: 20px; font-weight: 700; transition: all .12s; }
+.fb-ok { background: rgba(0,166,80,.12); border: 1px solid var(--green); color: #00854f; }
+.fb-err { background: rgba(230,57,70,.12); border: 1px solid var(--red); color: #c0283a; }
+.fb-warn { background: rgba(245,166,35,.14); border: 1px solid var(--yellow); color: #a85d00; }
+.fb-idle { background: var(--surface2); border: 1px solid var(--border); color: var(--text3); font-weight: 500; font-size: 15px; }
+.scan-sub { font-size: 14px; font-weight: 500; margin-top: 6px; opacity: .9; }
+.scan-log { margin-top: 18px; max-height: 320px; overflow-y: auto; }
+.qr-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 14px; margin-top: 14px; }
+.qr-cell { background: #fff; color: #111; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+.qr-cell .qr-canvas { display: flex; justify-content: center; }
+.qr-cell .qr-label { font-family: 'DM Mono', monospace; font-weight: 600; font-size: 15px; margin-top: 8px; color: #111; }
+.qr-cell .qr-sub { font-size: 11px; color: #555; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--meli-blue); border: 1px solid var(--meli-blue); color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; z-index: 999; box-shadow: 0 8px 30px rgba(45,50,119,.25); }
+.qr-cell { cursor: pointer; transition: transform .1s, box-shadow .1s; }
+.qr-cell:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(52,131,250,.35); }
+.qr-cell .qr-hint { font-size: 10px; color: #888; margin-top: 4px; }
+
+/* container de impressão de UMA etiqueta (Zebra) */
+#single-print { display: none; }
+#single-print .lbl-num { font-family: 'DM Mono', monospace; font-weight: 700; font-size: 6mm; color: #000; text-align: center; margin-bottom: 2mm; }
+#single-print .lbl-rota { font-family: 'DM Mono', monospace; font-size: 3.5mm; color: #000; text-align: center; margin-top: 2mm; }
+
+@media print {
+  body * { visibility: hidden; }
+  /* impressão da PÁGINA toda (grade de QR) */
+  #print-area, #print-area * { visibility: visible; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff; }
+  .qr-grid { grid-template-columns: repeat(3,1fr); }
+  .qr-cell { cursor: default; box-shadow: none; transform: none; }
+  .qr-cell .qr-hint { display: none; }
+  .no-print { display: none !important; }
+
+  /* impressão de UMA etiqueta (Zebra portátil) — tamanho médio */
+  body.print-one * { visibility: hidden !important; }
+  body.print-one #single-print, body.print-one #single-print * { visibility: visible !important; }
+  body.print-one #single-print {
+    display: block !important; position: absolute; left: 0; top: 0;
+    width: 50mm; padding: 3mm; text-align: center; background: #fff;
+  }
+  body.print-one #single-print canvas,
+  body.print-one #single-print img { width: 40mm !important; height: 40mm !important; margin: 0 auto; display: block; }
+  @page { margin: 4mm; }
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon"><svg width="26" height="26" viewBox="0 0 40 40"><path d="M6 24 Q10 14 15 19 Q19 24 22 20 Q25 16 29 20 Q34 24 38 16" stroke="#2D3277" stroke-width="3.5" stroke-linecap="round" fill="none"/></svg></div>
+    <div><div class="brand-name">Rastreio de Sacas</div><div class="brand-sub">STAGE ZONE · SMG15</div></div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill" id="turno-pill">turno —</span>
+    <span class="pill"><span class="dot off" id="conn-dot"></span><span id="conn-txt">offline</span></span>
+    <span class="pill queue-badge" id="queue-pill" style="display:none">⏳ 0 na fila</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-page="data" onclick="goto('data')">🔄 Planilha</button>
+  <button class="tab" data-page="stages" onclick="goto('stages')">📍 Stages</button>
+  <button class="tab" data-page="print" onclick="goto('print')">🖨️ Imprimir QR</button>
+  <button class="tab" data-page="scan" onclick="goto('scan')">📟 Bipe no Stage</button>
+  <button class="tab" data-page="panel" onclick="goto('panel')">📊 Painel</button>
+</div>
+
+<div class="wrap">
+
+  <!-- ===================== DATA / PLANILHA ===================== -->
+  <div class="page active" id="page-data">
+    <div class="card">
+      <h2>1. Carregar a planilha (início do turno)</h2>
+      <div class="hint">Cole a URL <code>/exec</code> do Apps Script publicado. O app puxa as <b>sacas</b> do dia já com a rota real e o número (DE_PARA), e <b>cria os stages automaticamente</b> (1 rota = 1 stage). Atualize todo dia — as rotas mudam.</div>
+      <div class="row">
+        <label class="fld" style="flex:1;min-width:280px">URL do Apps Script<input id="gs-url" placeholder="https://script.google.com/macros/s/…/exec" oninput="saveUrl()"></label>
+        <button class="btn" onclick="fetchCatalog()">🔄 Carregar / Atualizar</button>
+      </div>
+      <div id="data-status" class="hint" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h2>Cadastro manual (teste / sem planilha)</h2>
+      <div class="hint">Pra testar: nº da saca + rota real. (Container opcional.)</div>
+      <div class="row">
+        <label class="fld">Nº saca<input id="mc-num" placeholder="652" style="width:100px"></label>
+        <label class="fld">Rota real<input id="mc-rota" placeholder="B7_AM1" style="width:140px"></label>
+        <label class="fld">Container<input id="mc-cid" placeholder="11935694" style="width:140px"></label>
+        <button class="btn" onclick="addManual()">+ Adicionar</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Sacas carregadas</h2>
+      <table><thead><tr><th>Nº saca</th><th>Rota real</th><th>Nome base</th><th>Container</th></tr></thead><tbody id="catalog-rows"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ===================== STAGES ===================== -->
+  <div class="page" id="page-stages">
+    <div class="card">
+      <h2>2. Stages do turno (automáticos)</h2>
+      <div class="hint">Gerados a partir das rotas da planilha — <b>1 rota = 1 stage</b>, numerados STAGE 1, 2, 3… Use a numeração nas zonas físicas. <b>Recriar</b> renumera do zero (faça no início do turno, depois de carregar a planilha).</div>
+      <div class="row">
+        <button class="btn" onclick="recriarStages()">♻️ Recriar stages da planilha</button>
+        <button class="btn ghost" onclick="limparStages()">Limpar todos</button>
+      </div>
+      <div class="stage-list" id="stage-list"></div>
+    </div>
+  </div>
+
+  <!-- ===================== PRINT ===================== -->
+  <div class="page" id="page-print">
+    <div class="card">
+      <h2>3. Imprimir os QR</h2>
+      <div class="hint">Escolha o stage/rota → o app monta os QR no formato real <code>{"container_id":…,"facility_id":"SMG15","assignment":"652"}</code> (número vem da planilha). Imprima e cole nas sacas. Transbordou? Clique <b>⧉ duplicar</b> na saca que precisa — gera <code>319 - 2</code>, de novo gera <code>319 - 3</code>… O QR continua sendo o da saca original (válido no sistema), o rótulo mostra a duplicata.</div>
+      <div class="row">
+        <label class="fld">Stage / Rota<select id="pr-stage" style="width:280px" onchange="renderPrintList()"></select></label>
+        <button class="btn ghost" onclick="window.print()">🖨️ Imprimir</button>
+      </div>
+    </div>
+    <div class="card no-print"><h2>Sacas</h2><div id="print-saca-list"></div></div>
+    <div id="print-area"><div class="qr-grid" id="qr-grid"></div></div>
+    <div id="single-print"></div>
+  </div>
+
+  <!-- ===================== SCAN ===================== -->
+  <div class="page" id="page-scan">
+    <div class="card">
+      <h2>4. Confirmar saca no stage</h2>
+      <div class="hint">Escolha o stage onde você está e bipe as sacas. O app lê o QR, pega o número da saca, descobre a rota e compara com a rota do stage. Rota errada = alerta de desvio na hora.</div>
+      <div class="row">
+        <label class="fld">Estou no<select id="sc-stage" style="width:280px" onchange="updateScanCtx()"></select></label>
+        <label class="fld">Operador<input id="sc-op" placeholder="seu nome" style="width:160px" oninput="saveOp()"></label>
+      </div>
+      <div class="scan-box">
+        <input class="scan-input" id="scan-input" placeholder="bipe aqui…" autocomplete="off" onkeydown="onScanKey(event)">
+        <div class="scan-feedback fb-idle" id="scan-fb">Aguardando bipe…</div>
+      </div>
+      <div class="scan-log"><table><thead><tr><th>Hora</th><th>Saca</th><th>Resultado</th></tr></thead><tbody id="scan-log-body"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- ===================== PANEL ===================== -->
+  <div class="page" id="page-panel">
+    <div class="card">
+      <h2>Painel do turno</h2>
+      <div class="hint">Previstas = sacas da planilha. Confirmadas = bipadas no stage certo. Faltando / desvio em vermelho.</div>
+      <div class="stat-grid" id="panel-stats"></div>
+      <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="zerarSacas()">🗑️ Zerar registros do turno (sacas geradas/bipadas)</button></div>
+    </div>
+    <div class="card">
+      <h2>Por stage / rota</h2>
+      <table><thead><tr><th>Stage</th><th>Rota real</th><th>Previstas</th><th>Confirmadas</th><th>Faltando</th><th>Desvio</th></tr></thead><tbody id="panel-rows"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>⧉ Duplicatas por saca</h2>
+      <div class="hint">Quantas sacas extras (duplicatas) foram criadas de cada saca, por rota.</div>
+      <div id="panel-dups"></div>
+    </div>
+    <div class="card">
+      <h2>🔴 Divergências</h2>
+      <table><thead><tr><th>Saca</th><th>Rota</th><th>Tipo</th><th>Situação</th><th></th></tr></thead><tbody id="panel-div"></tbody></table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   FIREBASE (mesmo projeto, nó isolado registro_sacas/)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCR-O8PWfKdTANDPnu59DeACPmAN-TrJsI",
+  authDomain: "registrosmg15.firebaseapp.com",
+  databaseURL: "https://registrosmg15-default-rtdb.firebaseio.com",
+  projectId: "registrosmg15",
+  storageBucket: "registrosmg15.firebasestorage.app",
+  messagingSenderId: "353674201769",
+  appId: "1:353674201769:web:14f0e14647e85875b4b7b8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ROOT = 'registro_sacas';
+const FACILITY = 'SMG15';
+firebase.auth().signInAnonymously().catch(e => {
+  console.warn('[auth] anon falhou:', e.code, e.message);
+  setTimeout(() => toast('⚠️ Login anônimo falhou (' + (e.code||'') + ')'), 1200);
+});
+firebase.auth().onAuthStateChanged(u => console.log('[auth]', u ? 'logado '+u.uid : 'NÃO logado'));
+
+/* ============================================================
+   ESTADO + CACHE LOCAL
+   catalog[saca_number] = { container_id, route_name, real_route, cycle }
+   stages[STAGE N]       = { route, n }
+   sacas[saca_number]    = { ...registro operacional }
+   ============================================================ */
+let STATE = { catalog: {}, stages: {}, sacas: {} };
+let QUEUE = JSON.parse(localStorage.getItem('rs_queue') || '[]');
+const TURNO = turnoAtual();
+
+function turnoAtual() {
+  const d = new Date(), h = d.getHours();
+  const t = h < 12 ? 'T1' : h < 18 ? 'T2' : 'T3';
+  return `${d.toISOString().slice(0,10)}-${t}`;
+}
+document.getElementById('turno-pill').textContent = 'turno ' + TURNO;
+
+function cacheState() { try { localStorage.setItem('rs_state', JSON.stringify(STATE)); } catch(e){} }
+(function(){ try { const c = JSON.parse(localStorage.getItem('rs_state')||'null'); if (c) STATE = Object.assign(STATE, c); } catch(e){} })();
+
+function persistQueue() { localStorage.setItem('rs_queue', JSON.stringify(QUEUE)); updateQueueBadge(); }
+function enqueue(path, value) { QUEUE.push({ path, value }); persistQueue(); flushQueue(); }
+function flushQueue() {
+  if (!navigator.onLine || QUEUE.length === 0) return;
+  const pending = QUEUE; QUEUE = []; persistQueue();
+  pending.forEach(item => db.ref(item.path).set(item.value)
+    .catch(err => { console.warn('[queue]', item.path, err.code, err.message); QUEUE.push(item); persistQueue(); reportFbError(err); }));
+}
+let fbErrShown = 0;
+function reportFbError(err) {
+  const now = Date.now(); if (now - fbErrShown < 5000) return; fbErrShown = now;
+  const msg = (err && (err.code + ' ' + err.message)) || String(err);
+  let dica = /permission|PERMISSION_DENIED/i.test(msg) ? ' → regras do RTDB exigem auth' : '';
+  document.getElementById('queue-pill').title = 'Erro Firebase: ' + msg;
+  toast('❌ Firebase recusou gravação' + dica);
+}
+window.addEventListener('online', () => { setConn(true); flushQueue(); });
+window.addEventListener('offline', () => setConn(false));
+function setConn(on) {
+  document.getElementById('conn-dot').className = 'dot ' + (on ? 'on' : 'off');
+  document.getElementById('conn-txt').textContent = on ? 'online' : 'offline';
+}
+function updateQueueBadge() {
+  const p = document.getElementById('queue-pill');
+  if (!QUEUE.length) p.style.display = 'none';
+  else { p.style.display = ''; p.textContent = `⏳ ${QUEUE.length} na fila`; }
+}
+db.ref('.info/connected').on('value', s => { const on = !!s.val(); setConn(on); if (on) flushQueue(); });
+
+function writeData(path, value) { setLocal(path, value); enqueue(`${ROOT}/${path}`, value); }
+function setLocal(path, value) {
+  const parts = path.split('/'); let o = STATE;
+  for (let i=0; i<parts.length-1; i++) { o[parts[i]] = o[parts[i]] || {}; o = o[parts[i]]; }
+  if (value === null) delete o[parts[parts.length-1]]; else o[parts[parts.length-1]] = value;
+  cacheState();
+}
+['catalog','stages','sacas'].forEach(node =>
+  db.ref(`${ROOT}/${node}`).on('value', snap => { STATE[node] = snap.val() || {}; cacheState(); renderAll(); }));
+
+/* ============================================================
+   NAVEGAÇÃO
+   ============================================================ */
+function goto(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelector(`.tab[data-page="${page}"]`).classList.add('active');
+  if (page === 'print') renderPrintList();
+  if (page === 'scan') setTimeout(() => document.getElementById('scan-input').focus(), 50);
+}
+
+/* ============================================================
+   PLANILHA / CATÁLOGO
+   ============================================================ */
+function saveUrl() { localStorage.setItem('rs_gs_url', document.getElementById('gs-url').value.trim()); }
+async function fetchCatalog() {
+  const url = (document.getElementById('gs-url').value || '').trim();
+  if (!url) return toast('Cole a URL do Apps Script primeiro');
+  const status = document.getElementById('data-status');
+  status.textContent = 'Buscando da planilha…';
+  try {
+    const r = await fetch(url);
+    const j = await r.json();
+    if (j.error) { status.textContent = '❌ ' + j.error; return; }
+    const sacas = j.sacas || [];
+    const batch = {}; let pulados = 0;
+    sacas.forEach(s => {
+      const num = String(s.saca_number || '').trim();
+      if (!num || /[.#$/\[\]]/.test(num)) { pulados++; return; }
+      batch[num] = { container_id: String(s.container_id||''), route_name: s.route_name||'', real_route: s.real_route||'', cycle: s.cycle||'' };
+    });
+    writeData('catalog', batch);
+    const ok = Object.keys(batch).length;
+    status.textContent = `✅ ${ok} sacas carregadas${pulados?` (${pulados} ignoradas)`:''} · ${new Date().toLocaleString('pt-BR')}`;
+    toast(`${ok} sacas da planilha`);
+    setTimeout(() => recriarStages(true), 400);  // recria stages do dia
+  } catch(e) { status.textContent = '❌ Falha: ' + e.message + ' (verifique a publicação do Apps Script)'; }
+}
+function addManual() {
+  const num = document.getElementById('mc-num').value.trim();
+  const rota = document.getElementById('mc-rota').value.trim().toUpperCase();
+  const cid = document.getElementById('mc-cid').value.trim();
+  if (!num || !rota) return toast('Informe nº da saca e rota');
+  writeData(`catalog/${num}`, { container_id: cid, route_name: '(manual)', real_route: rota, cycle: '' });
+  document.getElementById('mc-num').value=''; document.getElementById('mc-rota').value=''; document.getElementById('mc-cid').value='';
+  toast('Saca ' + num + ' adicionada'); ensureStages();
+}
+function renderCatalog() {
+  const tb = document.getElementById('catalog-rows');
+  const cat = Object.entries(STATE.catalog || {});
+  tb.innerHTML = cat.length ? cat.sort((a,b)=> (a[1].real_route||'').localeCompare(b[1].real_route||'') || a[0]-b[0]).map(([num,c]) =>
+    `<tr><td class="mono"><b>${num}</b></td><td>${c.real_route||'—'}</td><td class="mono" style="color:var(--text3)">${c.route_name||''}</td><td class="mono" style="color:var(--text3)">${c.container_id||''}</td></tr>`).join('')
+    : `<tr><td colspan=4 class=empty>Nenhuma saca carregada. Carregue a planilha.</td></tr>`;
+}
+
+/* rotas reais distintas presentes no catálogo */
+function rotasDoCatalogo() {
+  const set = {}; Object.values(STATE.catalog||{}).forEach(c => { if (c.real_route) set[c.real_route]=1; });
+  return Object.keys(set).sort();
+}
+function sacasDaRota(rota) {
+  return Object.entries(STATE.catalog||{}).filter(([n,c]) => c.real_route===rota).map(([n,c]) => Object.assign({saca_number:n}, c));
+}
+
+/* ============================================================
+   STAGES AUTOMÁTICOS (1 rota = 1 stage)
+   ============================================================ */
+function stageDaRota(rota) {
+  const e = Object.entries(STATE.stages||{}).find(([k,s]) => s.route === rota);
+  return e ? e[0] : null;
+}
+function maxStageN() {
+  let m = 0; Object.values(STATE.stages||{}).forEach(s => { if (s.n > m) m = s.n; });
+  return m;
+}
+/* adiciona stage só pras rotas que ainda não têm (não renumera) */
+function ensureStages() {
+  let n = maxStageN();
+  rotasDoCatalogo().forEach(rota => { if (!stageDaRota(rota)) { n++; writeData(`stages/STAGE ${n}`, { route: rota, n }); } });
+}
+/* recria do zero: limpa e renumera por ordem alfabética de rota */
+function recriarStages(silent) {
+  if (!silent && !confirm('Recriar todos os stages a partir da planilha? (renumera do zero)')) return;
+  writeData('stages', null);
+  const rotas = rotasDoCatalogo();
+  const novo = {}; rotas.forEach((rota, i) => { novo[`STAGE ${i+1}`] = { route: rota, n: i+1 }; });
+  writeData('stages', novo);
+  if (!silent) toast(`${rotas.length} stages recriados`);
+}
+function limparStages() { if (confirm('Limpar todos os stages?')) writeData('stages', null); }
+
+function stagesOrdenados() {
+  return Object.entries(STATE.stages||{}).sort((a,b)=> (a[1].n||0) - (b[1].n||0));
+}
+function renderStages() {
+  const list = document.getElementById('stage-list');
+  const stages = stagesOrdenados();
+  list.innerHTML = stages.length ? stages.map(([k,s]) => {
+    const cnt = sacasDaRota(s.route).length;
+    return `<div class="stage-chip"><div class="stage-num">${s.n}</div>
+      <div style="flex:1"><div class="s-name">${k}</div><div class="s-rota">${s.route}</div>
+      <div class="s-cnt">${cnt} saca${cnt!==1?'s':''}</div></div></div>`;
+  }).join('') : `<div class="empty">Nenhum stage. Carregue a planilha e clique em Recriar.</div>`;
+
+  // selects (imprimir + scan) por stage
+  const opts = stages.map(([k,s]) => `<option value="${k}">${k} · ${s.route}</option>`).join('') || `<option value="">— sem stages —</option>`;
+  ['pr-stage','sc-stage'].forEach(id => {
+    const sel = document.getElementById(id), cur = sel.value;
+    sel.innerHTML = opts;
+    if (stages.find(([k])=>k===cur)) sel.value = cur;
+  });
+}
+
+/* ============================================================
+   QR / IMPRESSÃO (número vem da planilha)
+   ============================================================ */
+function makePayload(containerId, assignment) {
+  const cid = Number(containerId);
+  return JSON.stringify({ container_id: isNaN(cid) ? String(containerId) : cid, facility_id: FACILITY, assignment: String(assignment) });
+}
+function gerarSaca(sacaNum, rota, containerId, tipo) {
+  if (STATE.sacas && STATE.sacas[sacaNum]) return STATE.sacas[sacaNum];
+  const rec = {
+    saca_number: String(sacaNum), real_route: rota, container_id: String(containerId||''),
+    tipo, qr_payload: makePayload(containerId, sacaNum), stage_esperado: stageDaRota(rota),
+    status: 'gerada', confirmado_stage: null, origem: tipo==='duplicata'?'site':'planilha',
+    gerado_por: getOp(), gerado_em: Date.now(), turno: TURNO
+  };
+  writeData(`sacas/${sacaNum}`, rec);
+  return rec;
+}
+/* duplicatas de uma saca: chaves 319-2, 319-3 … (a "-1" é a original) */
+function dupsDaSaca(parent) {
+  return Object.entries(STATE.sacas||{}).filter(([n,s]) => s.tipo==='duplicata' && String(s.parent)===String(parent));
+}
+function duplicarSaca(parent, rota, container) {
+  const seq = dupsDaSaca(parent).length + 2;          // 1ª duplicata = "-2"
+  const key = `${parent}-${seq}`;
+  writeData(`sacas/${key}`, {
+    saca_number: String(parent), real_route: rota, container_id: String(container||''),
+    tipo: 'duplicata', parent: String(parent), dup_seq: seq,
+    qr_payload: makePayload(container, parent),       // QR = saca original (válido no sistema)
+    stage_esperado: stageDaRota(rota), status: 'gerada', confirmado_stage: null,
+    origem: 'site', gerado_por: getOp(), gerado_em: Date.now(), turno: TURNO
+  });
+  toast(`Duplicata criada: saca ${parent} - ${seq}`);
+}
+function delSaca(num) { if (confirm('Remover esta saca gerada?')) writeData(`sacas/${num}`, null); }
+
+function renderPrintList() {
+  const st = document.getElementById('pr-stage').value;
+  const cont = document.getElementById('print-saca-list');
+  const rota = st ? (STATE.stages[st]||{}).route : null;
+  if (!rota) { cont.innerHTML = '<div class="empty">Selecione um stage.</div>'; document.getElementById('qr-grid').innerHTML=''; return; }
+  const previstas = sacasDaRota(rota);
+  const rows = previstas.sort((a,b)=>a.saca_number-b.saca_number).map(c => {
+    const s = STATE.sacas && STATE.sacas[c.saca_number];
+    const nDup = dupsDaSaca(c.saca_number).length;
+    return `<tr><td class="mono"><b>${c.saca_number}</b>${nDup?` <span class="tag dup">+${nDup} dup</span>`:''}</td>
+      <td class="mono" style="color:var(--text3)">${c.container_id||'—'}</td>
+      <td>${s ? '<span class="tag orig">gerada</span>' : '<span class="tag print">a gerar</span>'}</td>
+      <td style="text-align:right;white-space:nowrap">
+        ${s ? '' : `<button class="btn sm" onclick="gerarSaca('${c.saca_number}','${rota}','${c.container_id}','original')">gerar QR</button>`}
+        <button class="btn ghost sm" onclick="duplicarSaca('${c.saca_number}','${rota}','${c.container_id}')">⧉ duplicar</button>
+      </td></tr>`;
+  }).join('');
+  cont.innerHTML = `<table><thead><tr><th>Nº saca</th><th>Container</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows||'<tr><td colspan=4 class=empty>Rota sem sacas. Carregue a planilha.</td></tr>'}</tbody></table>
+    <div class="row" style="margin-top:12px"><button class="btn" onclick="gerarTodasRota('${rota}')">⚡ Gerar todas desta rota</button></div>`;
+  renderQRGrid(rota);
+}
+function gerarTodasRota(rota) {
+  let n=0; sacasDaRota(rota).forEach(c => { if (!STATE.sacas || !STATE.sacas[c.saca_number]) { gerarSaca(c.saca_number, rota, c.container_id, 'original'); n++; } });
+  toast(n? `${n} sacas geradas` : 'Todas já geradas');
+}
+function renderQRGrid(rota) {
+  const grid = document.getElementById('qr-grid');
+  const sacas = Object.entries(STATE.sacas||{}).filter(([n,s]) => s.real_route===rota)
+    .map(([n,s]) => Object.assign({saca_number:n}, s)).sort((a,b)=> a.saca_number - b.saca_number);
+  grid.innerHTML = '';
+  sacas.forEach(s => {
+    const nome = s.tipo==='duplicata' ? `Saca ${s.parent} - ${s.dup_seq}` : `Saca ${s.saca_number}`;
+    const cell = document.createElement('div'); cell.className='qr-cell';
+    cell.title = 'Clique para imprimir só esta etiqueta';
+    cell.onclick = () => printSingle(s);
+    const qr = document.createElement('div'); qr.className='qr-canvas'; cell.appendChild(qr);
+    const lbl = document.createElement('div'); lbl.className='qr-label'; lbl.textContent = nome;
+    const sub = document.createElement('div'); sub.className='qr-sub';
+    sub.textContent = `${s.real_route}${s.tipo==='duplicata'?' · DUPLICATA':''}`;
+    const hint = document.createElement('div'); hint.className='qr-hint'; hint.textContent = '🖨️ clique p/ imprimir';
+    cell.appendChild(lbl); cell.appendChild(sub); cell.appendChild(hint); grid.appendChild(cell);
+    new QRCode(qr, { text: s.qr_payload, width: 130, height: 130, correctLevel: QRCode.CorrectLevel.M });
+  });
+}
+
+/* imprime UMA etiqueta (tamanho médio p/ Zebra portátil) */
+function printSingle(s) {
+  const nome = s.tipo==='duplicata' ? `Saca ${s.parent} - ${s.dup_seq}` : `Saca ${s.saca_number}`;
+  const sp = document.getElementById('single-print'); sp.innerHTML = '';
+  const num = document.createElement('div'); num.className='lbl-num'; num.textContent = nome;
+  const qr = document.createElement('div'); qr.className='qr-canvas';
+  const rt = document.createElement('div'); rt.className='lbl-rota'; rt.textContent = s.real_route + (s.tipo==='duplicata'?' · DUP':'');
+  sp.appendChild(num); sp.appendChild(qr); sp.appendChild(rt);
+  new QRCode(qr, { text: s.qr_payload, width: 384, height: 384, correctLevel: QRCode.CorrectLevel.M });
+  document.body.classList.add('print-one');
+  setTimeout(() => window.print(), 150);
+}
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('print-one');
+  const sp = document.getElementById('single-print'); if (sp) sp.innerHTML = '';
+});
+
+/* ============================================================
+   BIPE NO STAGE
+   ============================================================ */
+function getOp() { return localStorage.getItem('rs_op') || ''; }
+function saveOp() { localStorage.setItem('rs_op', document.getElementById('sc-op').value.trim()); }
+function updateScanCtx() { setFeedback('idle', 'Aguardando bipe…'); }
+function onScanKey(e) { if (e.key !== 'Enter') return; const raw = e.target.value.trim(); e.target.value=''; if (raw) processScan(raw); }
+
+/* extrai {assignment, container_id} de um bipe (JSON do QR, ou número puro) */
+function parseScan(raw) {
+  try { const o = JSON.parse(raw); if (o && (o.assignment!=null || o.container_id!=null)) return { assignment: o.assignment!=null?String(o.assignment):null, container_id: o.container_id!=null?String(o.container_id):null }; } catch(e){}
+  const a = raw.match(/assignment["':\s]*([0-9A-Za-z]+)/i);
+  const c = raw.match(/container_id["':\s]*([0-9A-Za-z]+)/i);
+  if (a || c) return { assignment: a?a[1]:null, container_id: c?c[1]:null };
+  if (/^[0-9A-Za-z]+$/.test(raw)) return { assignment: raw, container_id: null };
+  return null;
+}
+/* acha a saca pelo número (assignment) ou pelo container */
+function acharSaca(parsed) {
+  if (parsed.assignment != null) {
+    if (STATE.catalog && STATE.catalog[parsed.assignment]) return Object.assign({ saca_number: parsed.assignment }, STATE.catalog[parsed.assignment]);
+    if (STATE.sacas && STATE.sacas[parsed.assignment]) return Object.assign({ saca_number: parsed.assignment }, STATE.sacas[parsed.assignment]);
+  }
+  if (parsed.container_id != null) {
+    const fromCat = Object.entries(STATE.catalog||{}).find(([n,c]) => String(c.container_id)===parsed.container_id);
+    if (fromCat) return Object.assign({ saca_number: fromCat[0] }, fromCat[1]);
+    const fromSac = Object.entries(STATE.sacas||{}).find(([n,s]) => String(s.container_id)===parsed.container_id);
+    if (fromSac) return Object.assign({ saca_number: fromSac[0] }, fromSac[1]);
+  }
+  return null;
+}
+function processScan(raw) {
+  const stage = document.getElementById('sc-stage').value;
+  if (!stage) return setFeedback('warn', '⚠️ Selecione o stage primeiro');
+  const stageRota = (STATE.stages[stage]||{}).route;
+  const parsed = parseScan(raw);
+  if (!parsed) { setFeedback('err','❌ Leitura inválida', raw); logScan(raw,'inválida','miss'); beep(false); return; }
+  const saca = acharSaca(parsed);
+  if (!saca) { setFeedback('err','❌ Saca desconhecida', `não encontrei (${parsed.assignment||parsed.container_id})`); logScan(parsed.assignment||parsed.container_id||raw,'desconhecida','miss'); beep(false); return; }
+
+  const num = saca.saca_number, rota = saca.real_route;
+  const label = `saca ${num} · ${rota}`;
+  // garante registro operacional
+  if (!STATE.sacas || !STATE.sacas[num]) gerarSaca(num, rota, saca.container_id, saca.tipo||'original');
+
+  if (rota !== stageRota) {
+    setFeedback('err','❌ STAGE ERRADO', `${label} → vai pro ${stageDaRota(rota)||'?'} (${rota}). Aqui é ${stageRota}.`);
+    writeData(`sacas/${num}/status`, 'divergente');
+    writeData(`sacas/${num}/confirmado_stage`, stage);
+    writeData(`sacas/${num}/confirmado_em`, Date.now());
+    logScan(label, `desvio → ${rota}`, 'miss'); beep(false); return;
+  }
+  writeData(`sacas/${num}/status`, 'no_stage');
+  writeData(`sacas/${num}/confirmado_stage`, stage);
+  writeData(`sacas/${num}/confirmado_em`, Date.now());
+  writeData(`sacas/${num}/confirmado_por`, getOp());
+  setFeedback('ok','✅ ' + label, 'confirmada · ' + stage);
+  logScan(label, 'OK · ' + stage, 'ok'); beep(true);
+}
+function setFeedback(kind, big, sub='') {
+  const el = document.getElementById('scan-fb');
+  el.className = 'scan-feedback fb-' + kind;
+  el.innerHTML = big + (sub ? `<div class="scan-sub">${sub}</div>` : '');
+}
+let scanLog = [];
+function logScan(saca, result, cls) {
+  scanLog.unshift({ t:new Date().toLocaleTimeString('pt-BR'), saca, result, cls });
+  scanLog = scanLog.slice(0,60);
+  document.getElementById('scan-log-body').innerHTML = scanLog.map(r =>
+    `<tr><td class="mono" style="color:var(--text3)">${r.t}</td><td>${r.saca}</td><td><span class="tag ${r.cls}">${r.result}</span></td></tr>`).join('');
+}
+function beep(ok) {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = ok ? 880 : 220; o.type='square'; g.gain.value=0.08; o.start();
+    setTimeout(() => { o.stop(); ctx.close(); }, ok ? 110 : 320);
+  } catch(e){}
+}
+
+/* ============================================================
+   PAINEL
+   ============================================================ */
+function renderPanel() {
+  const sacas = Object.values(STATE.sacas || {});
+  const dupCount = sacas.filter(s => s.tipo==='duplicata').length;
+  const previstas = Object.keys(STATE.catalog || {}).length + dupCount;   // catálogo + duplicatas
+  const confirmadas = sacas.filter(s => s.status==='no_stage').length;
+  const divergentes = sacas.filter(s => s.status==='divergente').length;
+  // faltando = originais do catálogo ainda não confirmadas
+  const confNums = {}; sacas.forEach(s => { if (s.status==='no_stage') confNums[s.saca_number]=1; });
+  const faltando = Object.keys(STATE.catalog||{}).filter(n => !confNums[n]).length;
+  document.getElementById('panel-stats').innerHTML = `
+    <div class="stat"><div class="n">${previstas}</div><div class="l">Previstas</div></div>
+    <div class="stat"><div class="n" style="color:#00854f">${confirmadas}</div><div class="l">Confirmadas</div></div>
+    <div class="stat"><div class="n" style="color:var(--yellow)">${faltando}</div><div class="l">Faltando</div></div>
+    <div class="stat"><div class="n" style="color:#c0283a">${divergentes}</div><div class="l">Desvio</div></div>`;
+
+  const rotas = {};
+  stagesOrdenados().forEach(([k,s]) => rotas[s.route] = { stage:k, n:s.n, prev:0, prevOrig:0, conf:0, falt:0, desv:0 });
+  Object.values(STATE.catalog||{}).forEach(c => { if (rotas[c.real_route]) { rotas[c.real_route].prev++; rotas[c.real_route].prevOrig++; } });
+  sacas.forEach(s => { const r = rotas[s.real_route]; if (!r) return;
+    if (s.tipo==='duplicata') r.prev++;                 // duplicata também conta como prevista
+    if (s.status==='no_stage') r.conf++; else if (s.status==='divergente') r.desv++; });
+  Object.keys(rotas).forEach(rt => { rotas[rt].falt = Math.max(0, rotas[rt].prevOrig - rotas[rt].conf); });
+  const rk = Object.entries(rotas).sort((a,b)=> (a[1].n||0)-(b[1].n||0));
+  document.getElementById('panel-rows').innerHTML = rk.length ? rk.map(([rt,x]) =>
+    `<tr><td>${x.stage}</td><td><b>${rt}</b></td><td>${x.prev}</td><td style="color:#00854f">${x.conf}</td>
+     <td style="color:${x.falt?'var(--yellow)':'var(--text3)'}">${x.falt}</td>
+     <td style="color:${x.desv?'#c0283a':'var(--text3)'}">${x.desv}</td></tr>`).join('')
+    : `<tr><td colspan=6 class=empty>Sem dados.</td></tr>`;
+
+  const divList = Object.entries(STATE.sacas||{}).filter(([n,s]) => s.status==='divergente');
+  document.getElementById('panel-div').innerHTML = divList.length ? divList.map(([n,s]) =>
+    `<tr><td><b>${n}</b></td><td>${s.real_route}</td><td><span class="tag ${s.tipo==='duplicata'?'dup':'orig'}">${s.tipo||'original'}</span></td>
+     <td><span class="tag miss">stage errado (${s.confirmado_stage||'?'})</span></td>
+     <td><button class="btn green sm" onclick="resolver('${n}')">marcar localizada</button></td></tr>`).join('')
+    : `<tr><td colspan=5 class=empty>✅ Nenhum desvio.</td></tr>`;
+
+  // duplicatas por rota -> saca
+  const dups = {};
+  Object.values(STATE.sacas||{}).forEach(s => {
+    if (s.tipo!=='duplicata' || !s.parent || !s.real_route) return;  // ignora registro inválido/antigo
+    dups[s.real_route] = dups[s.real_route] || {};
+    dups[s.real_route][s.parent] = (dups[s.real_route][s.parent]||0) + 1;
+  });
+  const stageByRota = {}, stageNByRota = {};
+  stagesOrdenados().forEach(([k,s]) => { stageByRota[s.route]=k; stageNByRota[s.route]=s.n; });
+  // ordena rotas por nº do stage
+  const drk = Object.keys(dups).sort((a,b)=> (stageNByRota[a]||999)-(stageNByRota[b]||999) || a.localeCompare(b));
+  document.getElementById('panel-dups').innerHTML = drk.length ? drk.map(rota => {
+    const entries = Object.entries(dups[rota]).sort((a,b)=> b[1]-a[1] || a[0]-b[0]);  // mais duplicada primeiro
+    const total = entries.reduce((s,[,c])=> s+c, 0);
+    const max = Math.max.apply(null, entries.map(([,c])=>c));
+    const rows = entries.map(([p,c]) =>
+      `<div class="dup-row"><div class="saca">saca ${p}</div>
+        <div class="dup-bar-wrap"><div class="dup-bar" style="width:${Math.round(c/max*100)}%"></div></div>
+        <div class="cnt">${c}</div></div>`).join('');
+    return `<div class="dup-route">
+      <div class="dup-route-head">
+        <div class="lhs">${stageByRota[rota]?`<span class="stg">${stageByRota[rota]}</span>`:''}<span class="rt">${rota}</span></div>
+        <div class="tot"><b>${total}</b> duplicata${total!==1?'s':''} · ${entries.length} saca${entries.length!==1?'s':''}</div>
+      </div>${rows}</div>`;
+  }).join('') : `<div class="empty">Nenhuma duplicata criada ainda.</div>`;
+}
+function resolver(num) {
+  if (!STATE.sacas[num]) return;
+  const rota = STATE.sacas[num].real_route;
+  writeData(`sacas/${num}/status`, 'no_stage');
+  writeData(`sacas/${num}/confirmado_stage`, stageDaRota(rota));
+  writeData(`sacas/${num}/resolvido_em`, Date.now());
+  toast('Saca marcada como localizada');
+}
+function zerarSacas() {
+  if (!confirm('Apagar TODOS os registros de sacas geradas/bipadas/duplicatas deste turno?\n(O catálogo da planilha e os stages permanecem.)')) return;
+  writeData('sacas', null);
+  toast('Registros do turno zerados');
+}
+
+/* ============================================================
+   RENDER GERAL + UTIL
+   ============================================================ */
+function renderAll() {
+  renderCatalog(); renderStages();
+  if (document.getElementById('page-print').classList.contains('active')) renderPrintList();
+  renderPanel();
+}
+let toastTimer;
+function toast(msg) {
+  let el = document.getElementById('toast');
+  if (!el) { el = document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.style.display='block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.style.display='none', 2800);
+}
+
+/* init */
+document.getElementById('sc-op').value = getOp();
+document.getElementById('gs-url').value = localStorage.getItem('rs_gs_url') || '';
+setConn(navigator.onLine); updateQueueBadge(); flushQueue(); renderAll();
+</script>
+</body>
+</html>
