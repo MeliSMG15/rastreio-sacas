@@ -135,6 +135,18 @@ tr:hover td { background: var(--surface2); }
   }
   body.print-one #single-print canvas,
   body.print-one #single-print img { width: 40mm !important; height: 40mm !important; margin: 0 auto; display: block; }
+
+  /* impressão GRANDE do QR de STAGE (colar no chão) — página inteira */
+  body.print-stage * { visibility: hidden !important; }
+  body.print-stage #single-print, body.print-stage #single-print * { visibility: visible !important; }
+  body.print-stage #single-print {
+    display: block !important; position: absolute; left: 0; top: 0;
+    width: 100%; text-align: center; padding: 8mm; background: #fff;
+  }
+  body.print-stage #single-print .lbl-num { font-size: 26mm; line-height: 1.1; margin-bottom: 8mm; }
+  body.print-stage #single-print .lbl-rota { font-size: 14mm; margin-top: 8mm; }
+  body.print-stage #single-print canvas,
+  body.print-stage #single-print img { width: 160mm !important; height: 160mm !important; margin: 0 auto; display: block; }
   @page { margin: 4mm; }
 }
 </style>
@@ -471,8 +483,8 @@ function printStage(name, route) {
   const qr = document.createElement('div'); qr.className='qr-canvas';
   const rt = document.createElement('div'); rt.className='lbl-rota'; rt.textContent = route;
   sp.appendChild(num); sp.appendChild(qr); sp.appendChild(rt);
-  new QRCode(qr, { text: stageQrPayload(name, route), width: 384, height: 384, correctLevel: QRCode.CorrectLevel.M });
-  document.body.classList.add('print-one'); setTimeout(() => window.print(), 150);
+  new QRCode(qr, { text: stageQrPayload(name, route), width: 512, height: 512, correctLevel: QRCode.CorrectLevel.M });
+  document.body.classList.add('print-stage'); setTimeout(() => window.print(), 150);
 }
 
 /* ============================================================
@@ -570,7 +582,7 @@ function printSingle(s) {
   setTimeout(() => window.print(), 150);
 }
 window.addEventListener('afterprint', () => {
-  document.body.classList.remove('print-one');
+  document.body.classList.remove('print-one', 'print-stage');
   const sp = document.getElementById('single-print'); if (sp) sp.innerHTML = '';
 });
 
