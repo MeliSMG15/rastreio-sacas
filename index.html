@@ -258,8 +258,8 @@ tr:hover td { background: var(--surface2); }
       <table><thead><tr><th>Stage</th><th>Rota real</th><th>Previstas</th><th>Confirmadas</th><th>Faltando</th><th>Desvio</th></tr></thead><tbody id="panel-rows"></tbody></table>
     </div>
     <div class="card">
-      <h2>⧉ Duplicatas por saca</h2>
-      <div class="hint">Quantas sacas extras (duplicatas) foram criadas de cada saca, por rota.</div>
+      <h2>⧉ Bipes por saca</h2>
+      <div class="hint">Quantas vezes cada saca (QR) foi bipada no stage — cada bip = um volume/saca daquele número que chegou. Contado pelos bipes, não pelo botão de duplicar.</div>
       <div id="panel-dups"></div>
     </div>
     <div class="card">
@@ -677,11 +677,13 @@ function processScan(raw) {
     writeData(`sacas/${num}/confirmado_por`, getOp());
     logScan(label, `desvio → ${rota}`, 'miss'); beep(false); renderPanel(); return;
   }
+  const nb = ((STATE.sacas[num]||{}).bips || 0) + 1;   // conta cada QR bipado dessa saca
+  writeData(`sacas/${num}/bips`, nb);
   writeData(`sacas/${num}/status`, 'no_stage');
   writeData(`sacas/${num}/confirmado_stage`, stage);
   writeData(`sacas/${num}/confirmado_em`, Date.now());
   writeData(`sacas/${num}/confirmado_por`, getOp());
-  setFeedback('ok','✅ ' + label, 'confirmada · ' + stage);
+  setFeedback('ok','✅ ' + label, `confirmada · ${stage} · ${nb}º bip`);
   logScan(label, 'OK · ' + stage, 'ok'); beep(true); renderPanel();
 }
 function setFeedback(kind, big, sub='') {
@@ -744,12 +746,13 @@ function renderPanel() {
      <td><button class="btn green sm" onclick="resolver('${n}')">marcar localizada</button></td></tr>`).join('')
     : `<tr><td colspan=5 class=empty>✅ Nenhum desvio.</td></tr>`;
 
-  // duplicatas por rota -> saca
+  // bipes por rota -> saca (cada QR bipado conta 1)
   const dups = {};
-  Object.values(STATE.sacas||{}).forEach(s => {
-    if (s.tipo!=='duplicata' || !s.parent || !s.real_route) return;  // ignora registro inválido/antigo
+  Object.entries(STATE.sacas||{}).forEach(([num,s]) => {
+    const b = s.bips || 0;
+    if (b < 1 || !s.real_route) return;
     dups[s.real_route] = dups[s.real_route] || {};
-    dups[s.real_route][s.parent] = (dups[s.real_route][s.parent]||0) + 1;
+    dups[s.real_route][num] = b;
   });
   const stageByRota = {}, stageNByRota = {};
   stagesOrdenados().forEach(([k,s]) => { stageByRota[s.route]=k; stageNByRota[s.route]=s.n; });
@@ -766,9 +769,9 @@ function renderPanel() {
     return `<div class="dup-route">
       <div class="dup-route-head">
         <div class="lhs">${stageByRota[rota]?`<span class="stg">${stageByRota[rota]}</span>`:''}<span class="rt">${rota}</span></div>
-        <div class="tot"><b>${total}</b> duplicata${total!==1?'s':''} · ${entries.length} saca${entries.length!==1?'s':''}</div>
+        <div class="tot"><b>${total}</b> bipe${total!==1?'s':''} · ${entries.length} saca${entries.length!==1?'s':''}</div>
       </div>${rows}</div>`;
-  }).join('') : `<div class="empty">Nenhuma duplicata criada ainda.</div>`;
+  }).join('') : `<div class="empty">Nenhuma saca bipada ainda.</div>`;
 }
 function resolver(num) {
   if (!STATE.sacas[num]) return;
