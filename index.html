@@ -86,6 +86,12 @@ tr:hover td { background: var(--surface2); }
 .stage-chip .s-name { font-weight: 700; font-size: 15px; }
 .stage-chip .s-rota { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; }
 .stage-chip .s-cnt { font-size: 11px; color: var(--text3); }
+.stage-qr { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 5px; line-height: 0; cursor: pointer; transition: box-shadow .1s; }
+.stage-qr:hover { box-shadow: 0 4px 12px rgba(52,131,250,.35); }
+.stage-atual { flex: 1; min-width: 240px; padding: 14px 18px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); font-weight: 700; font-size: 17px; color: var(--text2); }
+.stage-atual.set { background: rgba(0,166,80,.12); border-color: var(--green); color: #00854f; }
+.stage-atual .sa-sub { font-size: 12px; font-weight: 500; color: var(--text3); margin-top: 3px; }
+.stage-atual.set .sa-sub { color: #00854f; opacity: .8; }
 .scan-box { text-align: center; padding: 6px 0 14px; }
 .scan-input { font-size: 24px; text-align: center; letter-spacing: 1px; font-family: 'DM Mono', monospace; width: 100%; max-width: 520px; padding: 16px; }
 .scan-feedback { margin: 18px auto 0; max-width: 600px; padding: 22px; border-radius: 14px; font-size: 20px; font-weight: 700; transition: all .12s; }
@@ -187,7 +193,7 @@ tr:hover td { background: var(--surface2); }
   <div class="page" id="page-stages">
     <div class="card">
       <h2>2. Stages do turno (automáticos)</h2>
-      <div class="hint">Gerados a partir das rotas da planilha — <b>1 rota = 1 stage</b>, numerados STAGE 1, 2, 3… Use a numeração nas zonas físicas. <b>Recriar</b> renumera do zero (faça no início do turno, depois de carregar a planilha).</div>
+      <div class="hint">Gerados a partir das rotas da planilha — <b>1 rota = 1 stage</b>, numerados STAGE 1, 2, 3… Cada stage tem seu <b>QR</b> (clique nele pra imprimir e colar na zona física). No turno, o operador bipa esse QR pra "entrar" no stage. <b>Recriar</b> renumera do zero (no início do turno, depois de carregar a planilha).</div>
       <div class="row">
         <button class="btn" onclick="recriarStages()">♻️ Recriar stages da planilha</button>
         <button class="btn ghost" onclick="limparStages()">Limpar todos</button>
@@ -215,9 +221,9 @@ tr:hover td { background: var(--surface2); }
   <div class="page" id="page-scan">
     <div class="card">
       <h2>4. Confirmar saca no stage</h2>
-      <div class="hint">Escolha o stage onde você está e bipe as sacas. O app lê o QR, pega o número da saca, descobre a rota e compara com a rota do stage. Rota errada = alerta de desvio na hora.</div>
+      <div class="hint">Primeiro <b>bipe o QR do stage</b> onde você está (ele fica fixado no banner abaixo). Depois bipe as sacas — o app pega o número da saca, descobre a rota e compara com a rota do stage. Rota errada = alerta de desvio na hora. Pra trocar de stage, é só bipar o QR de outro.</div>
       <div class="row">
-        <label class="fld">Estou no<select id="sc-stage" style="width:280px" onchange="updateScanCtx()"></select></label>
+        <div class="stage-atual" id="stage-atual">📍 Bipe o QR do STAGE onde você está</div>
         <label class="fld">Operador<input id="sc-op" placeholder="seu nome" style="width:160px" oninput="saveOp()"></label>
       </div>
       <div class="scan-box">
@@ -430,23 +436,42 @@ function limparStages() { if (confirm('Limpar todos os stages?')) writeData('sta
 function stagesOrdenados() {
   return Object.entries(STATE.stages||{}).sort((a,b)=> (a[1].n||0) - (b[1].n||0));
 }
+function stageQrPayload(name, route) { return `${name} - ${route||''}`.trim(); }
+
 function renderStages() {
   const list = document.getElementById('stage-list');
   const stages = stagesOrdenados();
-  list.innerHTML = stages.length ? stages.map(([k,s]) => {
+  list.innerHTML = stages.length ? stages.map(([k,s],i) => {
     const cnt = sacasDaRota(s.route).length;
     return `<div class="stage-chip"><div class="stage-num">${s.n}</div>
       <div style="flex:1"><div class="s-name">${k}</div><div class="s-rota">${s.route}</div>
-      <div class="s-cnt">${cnt} saca${cnt!==1?'s':''}</div></div></div>`;
+      <div class="s-cnt">${cnt} saca${cnt!==1?'s':''}</div></div>
+      <div class="stage-qr" id="stageqr-${i}" title="Clique para imprimir o QR do ${k}"></div></div>`;
   }).join('') : `<div class="empty">Nenhum stage. Carregue a planilha e clique em Recriar.</div>`;
 
-  // selects (imprimir + scan) por stage
-  const opts = stages.map(([k,s]) => `<option value="${k}">${k} · ${s.route}</option>`).join('') || `<option value="">— sem stages —</option>`;
-  ['pr-stage','sc-stage'].forEach(id => {
-    const sel = document.getElementById(id), cur = sel.value;
-    sel.innerHTML = opts;
-    if (stages.find(([k])=>k===cur)) sel.value = cur;
+  // gera o QR de cada stage + clique pra imprimir
+  stages.forEach(([k,s],i) => {
+    const el = document.getElementById('stageqr-'+i);
+    if (el) { el.innerHTML=''; new QRCode(el, { text: stageQrPayload(k, s.route), width: 74, height: 74, correctLevel: QRCode.CorrectLevel.M }); el.onclick = () => printStage(k, s.route); }
   });
+
+  // select de imprimir por stage
+  const sel = document.getElementById('pr-stage'), cur = sel.value;
+  sel.innerHTML = stages.map(([k,s]) => `<option value="${k}">${k} · ${s.route}</option>`).join('') || `<option value="">— sem stages —</option>`;
+  if (stages.find(([k])=>k===cur)) sel.value = cur;
+
+  renderStageAtual();
+}
+
+/* imprime a etiqueta do STAGE (mesmo tamanho da Zebra) */
+function printStage(name, route) {
+  const sp = document.getElementById('single-print'); sp.innerHTML = '';
+  const num = document.createElement('div'); num.className='lbl-num'; num.textContent = name;
+  const qr = document.createElement('div'); qr.className='qr-canvas';
+  const rt = document.createElement('div'); rt.className='lbl-rota'; rt.textContent = route;
+  sp.appendChild(num); sp.appendChild(qr); sp.appendChild(rt);
+  new QRCode(qr, { text: stageQrPayload(name, route), width: 384, height: 384, correctLevel: QRCode.CorrectLevel.M });
+  document.body.classList.add('print-one'); setTimeout(() => window.print(), 150);
 }
 
 /* ============================================================
@@ -553,8 +578,35 @@ window.addEventListener('afterprint', () => {
    ============================================================ */
 function getOp() { return localStorage.getItem('rs_op') || ''; }
 function saveOp() { localStorage.setItem('rs_op', document.getElementById('sc-op').value.trim()); }
-function updateScanCtx() { setFeedback('idle', 'Aguardando bipe…'); }
 function onScanKey(e) { if (e.key !== 'Enter') return; const raw = e.target.value.trim(); e.target.value=''; if (raw) processScan(raw); }
+
+/* stage atual (definido bipando o QR do stage) */
+let currentStage = localStorage.getItem('rs_cur_stage') || '';
+function renderStageAtual() {
+  const el = document.getElementById('stage-atual'); if (!el) return;
+  if (currentStage && STATE.stages && STATE.stages[currentStage]) {
+    el.className = 'stage-atual set';
+    el.innerHTML = `📍 ${currentStage}<div class="sa-sub">rota ${STATE.stages[currentStage].route} · pode bipar as sacas</div>`;
+  } else {
+    el.className = 'stage-atual';
+    el.innerHTML = '📍 Bipe o QR do STAGE onde você está';
+  }
+}
+function setCurrentStage(name) {
+  if (!STATE.stages || !STATE.stages[name]) { setFeedback('err', '❌ Stage desconhecido', name); beep(false); return; }
+  currentStage = name; localStorage.setItem('rs_cur_stage', name);
+  renderStageAtual();
+  setFeedback('idle', `📍 Você está no ${name}`, `rota ${STATE.stages[name].route} · pode bipar as sacas`);
+  beep(true);
+}
+/* reconhece o QR de um stage: "STAGE 1 - ROTA", {"stage":"STAGE 1"} ou STAGE::STAGE 1 */
+function parseStage(raw) {
+  const m = raw.match(/^\s*STAGE\s*(\d+)\b/i);   // "STAGE 1 - ROTA" ou "STAGE 1"
+  if (m) return 'STAGE ' + m[1];
+  try { const o = JSON.parse(raw); if (o && o.stage && o.container_id==null && o.assignment==null) return String(o.stage); } catch(e){}
+  const s = raw.match(/^STAGE::(.+)$/i); if (s) return s[1].trim();
+  return null;
+}
 
 /* extrai {assignment, container_id} de um bipe (JSON do QR, ou número puro) */
 function parseScan(raw) {
@@ -580,8 +632,12 @@ function acharSaca(parsed) {
   return null;
 }
 function processScan(raw) {
-  const stage = document.getElementById('sc-stage').value;
-  if (!stage) return setFeedback('warn', '⚠️ Selecione o stage primeiro');
+  // é o QR de um stage? então "entra" nele
+  const st = parseStage(raw);
+  if (st) return setCurrentStage(st);
+
+  const stage = currentStage;
+  if (!stage || !STATE.stages[stage]) return setFeedback('warn', '⚠️ Bipe o QR do STAGE primeiro');
   const stageRota = (STATE.stages[stage]||{}).route;
   const parsed = parseScan(raw);
   if (!parsed) { setFeedback('err','❌ Leitura inválida', raw); logScan(raw,'inválida','miss'); beep(false); return; }
