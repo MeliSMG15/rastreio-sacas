@@ -749,7 +749,8 @@ function renderPanel() {
   // bipes por rota -> saca (cada QR bipado conta 1)
   const dups = {};
   Object.entries(STATE.sacas||{}).forEach(([num,s]) => {
-    const b = s.bips || 0;
+    // fallback: sacas já confirmadas antes do contador contam como 1
+    const b = s.bips || (s.status==='no_stage' ? 1 : 0);
     if (b < 1 || !s.real_route) return;
     dups[s.real_route] = dups[s.real_route] || {};
     dups[s.real_route][num] = b;
