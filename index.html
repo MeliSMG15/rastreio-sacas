@@ -363,6 +363,7 @@ function goto(page) {
   document.getElementById('page-'+page).classList.add('active');
   document.querySelector(`.tab[data-page="${page}"]`).classList.add('active');
   if (page === 'print') renderPrintList();
+  if (page === 'panel') renderPanel();
   if (page === 'scan') setTimeout(() => document.getElementById('scan-input').focus(), 50);
 }
 
@@ -673,14 +674,15 @@ function processScan(raw) {
     writeData(`sacas/${num}/status`, 'divergente');
     writeData(`sacas/${num}/confirmado_stage`, stage);
     writeData(`sacas/${num}/confirmado_em`, Date.now());
-    logScan(label, `desvio → ${rota}`, 'miss'); beep(false); return;
+    writeData(`sacas/${num}/confirmado_por`, getOp());
+    logScan(label, `desvio → ${rota}`, 'miss'); beep(false); renderPanel(); return;
   }
   writeData(`sacas/${num}/status`, 'no_stage');
   writeData(`sacas/${num}/confirmado_stage`, stage);
   writeData(`sacas/${num}/confirmado_em`, Date.now());
   writeData(`sacas/${num}/confirmado_por`, getOp());
   setFeedback('ok','✅ ' + label, 'confirmada · ' + stage);
-  logScan(label, 'OK · ' + stage, 'ok'); beep(true);
+  logScan(label, 'OK · ' + stage, 'ok'); beep(true); renderPanel();
 }
 function setFeedback(kind, big, sub='') {
   const el = document.getElementById('scan-fb');
