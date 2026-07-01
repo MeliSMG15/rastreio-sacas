@@ -249,13 +249,13 @@ tr:hover td { background: var(--surface2); }
   <div class="page" id="page-panel">
     <div class="card">
       <h2>Painel do turno</h2>
-      <div class="hint">Previstas = sacas da planilha. Confirmadas = bipadas no stage certo. Faltando / desvio em vermelho.</div>
+      <div class="hint">Confirmadas = bipadas no stage certo. Desvio = bipadas no stage errado (em vermelho).</div>
       <div class="stat-grid" id="panel-stats"></div>
       <div class="row" style="margin-top:14px"><button class="btn ghost" onclick="zerarSacas()">🗑️ Zerar registros do turno (sacas geradas/bipadas)</button></div>
     </div>
     <div class="card">
       <h2>Por stage / rota</h2>
-      <table><thead><tr><th>Stage</th><th>Rota real</th><th>Previstas</th><th>Confirmadas</th><th>Faltando</th><th>Desvio</th></tr></thead><tbody id="panel-rows"></tbody></table>
+      <table><thead><tr><th>Stage</th><th>Rota real</th><th>Confirmadas</th><th>Desvio</th></tr></thead><tbody id="panel-rows"></tbody></table>
     </div>
     <div class="card">
       <h2>⧉ Bipes por saca</h2>
@@ -720,9 +720,7 @@ function renderPanel() {
   const confNums = {}; sacas.forEach(s => { if (s.status==='no_stage') confNums[s.saca_number]=1; });
   const faltando = Object.keys(STATE.catalog||{}).filter(n => !confNums[n]).length;
   document.getElementById('panel-stats').innerHTML = `
-    <div class="stat"><div class="n">${previstas}</div><div class="l">Previstas</div></div>
     <div class="stat"><div class="n" style="color:#00854f">${confirmadas}</div><div class="l">Confirmadas</div></div>
-    <div class="stat"><div class="n" style="color:var(--yellow)">${faltando}</div><div class="l">Faltando</div></div>
     <div class="stat"><div class="n" style="color:#c0283a">${divergentes}</div><div class="l">Desvio</div></div>`;
 
   const rotas = {};
@@ -734,10 +732,9 @@ function renderPanel() {
   Object.keys(rotas).forEach(rt => { rotas[rt].falt = Math.max(0, rotas[rt].prevOrig - rotas[rt].conf); });
   const rk = Object.entries(rotas).sort((a,b)=> (a[1].n||0)-(b[1].n||0));
   document.getElementById('panel-rows').innerHTML = rk.length ? rk.map(([rt,x]) =>
-    `<tr><td>${x.stage}</td><td><b>${rt}</b></td><td>${x.prev}</td><td style="color:#00854f">${x.conf}</td>
-     <td style="color:${x.falt?'var(--yellow)':'var(--text3)'}">${x.falt}</td>
+    `<tr><td>${x.stage}</td><td><b>${rt}</b></td><td style="color:#00854f">${x.conf}</td>
      <td style="color:${x.desv?'#c0283a':'var(--text3)'}">${x.desv}</td></tr>`).join('')
-    : `<tr><td colspan=6 class=empty>Sem dados.</td></tr>`;
+    : `<tr><td colspan=4 class=empty>Sem dados.</td></tr>`;
 
   const divList = Object.entries(STATE.sacas||{}).filter(([n,s]) => s.status==='divergente');
   document.getElementById('panel-div').innerHTML = divList.length ? divList.map(([n,s]) =>
