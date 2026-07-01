@@ -621,13 +621,19 @@ function parseStage(raw) {
   return null;
 }
 
-/* extrai {assignment, container_id} de um bipe (JSON do QR, ou número puro) */
+/* extrai {assignment, container_id} de um bipe.
+   Tolerante a scanner com layout de teclado trocado (símbolos " : { } viram ^ Ç etc.
+   e 'a' vira 'â'). Como números e letras sobrevivem, extraímos pelo fragmento da chave. */
 function parseScan(raw) {
+  // 1) JSON limpo (scanner ok ou digitado/colado)
   try { const o = JSON.parse(raw); if (o && (o.assignment!=null || o.container_id!=null)) return { assignment: o.assignment!=null?String(o.assignment):null, container_id: o.container_id!=null?String(o.container_id):null }; } catch(e){}
-  const a = raw.match(/assignment["':\s]*([0-9A-Za-z]+)/i);
-  const c = raw.match(/container_id["':\s]*([0-9A-Za-z]+)/i);
-  if (a || c) return { assignment: a?a[1]:null, container_id: c?c[1]:null };
-  if (/^[0-9A-Za-z]+$/.test(raw)) return { assignment: raw, container_id: null };
+  // 2) tolerante: pega os dígitos após "container" e após "ssignment" (ignora pontuação embaralhada)
+  const c = raw.match(/container\D*?(\d+)/i);
+  const a = raw.match(/ssignment\D*?(\d+)/i);
+  if (c || a) return { assignment: a ? a[1] : null, container_id: c ? c[1] : null };
+  // 3) número puro (bipe simples)
+  const num = raw.replace(/\D/g, '');
+  if (num) return { assignment: num, container_id: null };
   return null;
 }
 /* acha a saca pelo número (assignment) ou pelo container */
